@@ -76,7 +76,7 @@ class MyDocumentsView(generics.ListAPIView):
     
     def get_queryset(self):
         user = self.request.user
-        return document_models.Document.objects.filter(user=user).order_by("-created_at")
+        return document_models.Document.objects.filter(user=user).select_related('user').order_by("-created_at")
 
     @extend_schema(
         summary="List user's documents",
@@ -111,7 +111,10 @@ class TestVectorView(APIView):
     )
     def get(self, request, *args, **kwargs):
         document_uid = self.kwargs.get("document_uid")
-        document = document_models.Document.objects.filter(uid=document_uid).first()
+        try:
+            document = document_models.Document.objects.select_related('user').get(uid=document_uid)
+        except document_models.Document.DoesNotExist:
+            document = None
         
         if not document:
             return Response(

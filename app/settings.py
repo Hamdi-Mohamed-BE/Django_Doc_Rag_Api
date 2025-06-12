@@ -11,7 +11,6 @@ import sentry_sdk
 from google.oauth2 import service_account
 
 import base64
-import json
 
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -32,7 +31,7 @@ BACKEND_URL = os.environ.get("BACKEND_URL", "http://0.0.0.0")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 FRONTEND_VERIFY_EMAIL_URL = FRONTEND_URL + "/verify-email"
 
-CSRF_TRUSTED_ORIGINS = os.environ.get("CSRF_TRUSTED_ORIGINS").split(",")
+CSRF_TRUSTED_ORIGINS = os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",") if os.environ.get("CSRF_TRUSTED_ORIGINS") else []
 
 CLOUDRUN_SERVICE_URL = os.environ.get("CLOUDRUN_SERVICE_URL", default=None)
 if CLOUDRUN_SERVICE_URL:
@@ -339,10 +338,11 @@ else:
     GS_STATIC_BUCKET_NAME = os.environ.get("GS_STATIC_BUCKET_NAME")
     GS_MEDIA_BUCKET_NAME = os.environ.get("GS_MEDIA_BUCKET_NAME")
 
-    MEDIA_URL = os.environ.get("STORAGE_PUBLIC_PATH").format(GS_MEDIA_BUCKET_NAME)
+    STORAGE_PUBLIC_PATH = os.environ.get("STORAGE_PUBLIC_PATH", "https://storage.googleapis.com/{}/")
+    MEDIA_URL = STORAGE_PUBLIC_PATH.format(GS_MEDIA_BUCKET_NAME)
     MEDIA_ROOT = os.environ.get("STORAGE_MEDIA_ROOT")
 
-    STATIC_URL = os.environ.get("STORAGE_PUBLIC_PATH").format(GS_STATIC_BUCKET_NAME)
+    STATIC_URL = STORAGE_PUBLIC_PATH.format(GS_STATIC_BUCKET_NAME)
     STATIC_ROOT = os.environ.get("STORAGE_STATIC_ROOT")
 
 
@@ -437,7 +437,7 @@ GMAPS_API_KEY = os.environ.get('GMAPS_API_KEY', None)
 MAX_ITEMS_PER_PAGE_FOR_GUEST = int(os.environ.get('MAX_ITEMS_PER_PAGE_FOR_GUEST', 30))
 
 
-MASTER_PASSWORD = os.environ.get("MASTER_PASSWORD", "Dev@2025") 
+ 
 
 
 CLEAN_CHROMA_ON_SERVER_UPDATE = bool(int(os.environ.get("CLEAN_CHROMA_ON_SERVER_UPDATE", 1)))
