@@ -14,7 +14,7 @@ class UserManager(BaseUserManager):
     """User manager class for creating users and superusers"""
 
     def create_user(
-        self, email: str, password: str = None, **extra_fields: dict
+        self, email: str, password: str | None = None, **extra_fields: dict
     ) -> "User":
         """
         Creates and saves new user
@@ -78,7 +78,6 @@ class User(AbstractBaseUser, PermissionsMixin):
         default=False,
         verbose_name=_("Is phone verified?"),
     )
-    name = models.CharField(default="", max_length=64, verbose_name=_("Name"))
     surname = models.CharField(default="", max_length=64, verbose_name=_("Surname"))
     avatar = models.ImageField(
         upload_to=safe_file_path,
@@ -109,7 +108,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     USERNAME_FIELD = "email"
     
     @property
-    def get_firebase_token(self) -> str:
+    def get_firebase_token(self) -> str | None:
         return None
     
     @property

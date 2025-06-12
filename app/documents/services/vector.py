@@ -3,7 +3,6 @@ import os
 from typing import List, Tuple, Dict, Any
 
 from langchain_community.vectorstores import Chroma
-# TODO change to gemeni embedding or ollama (some free embedding)
 from langchain_openai import OpenAIEmbeddings
 
 import settings
@@ -22,15 +21,22 @@ CHROMA_PERSIST_DIR = os.path.join(
 
 class DocumentVectorStore():
     """Concrete implementation of BaseVectorStore for document vectorization."""
+    _embeddings_instance = None
+    
+    @classmethod
+    def get_embeddings(cls):
+        if cls._embeddings_instance is None:
+            cls._embeddings_instance = OpenAIEmbeddings(
+                api_key=settings.OPENAI_API_KEY,
+            )
+        return cls._embeddings_instance
     
     def get_retriever(
         self,
     ):
-        embeddings = OpenAIEmbeddings(
-            api_key=settings.OPENAI_API_KEY,
-        )
+        embeddings = self.get_embeddings()
         vector_store = Chroma(
-            collection_name="restaurant_reviews",
+            collection_name=self.collection_name,
             persist_directory=CHROMA_PERSIST_DIR,
             embedding_function=embeddings
         )
@@ -52,11 +58,11 @@ class DocumentVectorStore():
     
         texts_and_metadata = []
         document.status = document_enums.DocumentProcessingStatus.PROCESSING
-        document.save(
-            update_fields=["status", "updated_at"]
-        )
+        document.save(update_fields=["status", "updated_at"])
         
         if not document.document_file:
+            document.status = document_enums.DocumentProcessingStatus.FAILED
+            document.save(update_fields=["status", "updated_at"])
             return texts_and_metadata
         
         try:
@@ -64,7 +70,7 @@ class DocumentVectorStore():
                 "uid": str(document.uid),
                 "title": document.title,
                 "description": document.description or "",
-                "user_id": str(document.user_id),
+                "user_id": str(document.user.id),
                 "created_at": document.created_at.isoformat(),
                 "updated_at": document.updated_at.isoformat(),
             }
@@ -72,18 +78,13 @@ class DocumentVectorStore():
             for text, meta in parser.download_and_parse_document(document):
                 metadata.update(meta)
                 texts_and_metadata.append((text, metadata))
-        
+            
+            document.status = document_enums.DocumentProcessingStatus.COMPLETED
         except Exception as e:
             print(f"Error processing document {document.uid}: {e}")
             document.status = document_enums.DocumentProcessingStatus.FAILED
-            document.save(
-                update_fields=["status", "updated_at"]
-            )
         
-        document.status = document_enums.DocumentProcessingStatus.COMPLETED
-        document.save(
-            update_fields=["status", "updated_at"]
-        )
+        document.save(update_fields=["status", "updated_at"])
         return texts_and_metadata
 
     def add_documents(
@@ -93,29 +94,25 @@ class DocumentVectorStore():
         texts_and_metadata = self._prepare_data_texts(
             document=document
         )
-        embeddings = OpenAIEmbeddings(
-            api_key=settings.OPENAI_API_KEY,
-        )
+        embeddings = self.get_embeddings()
         vector_store = Chroma(
-            collection_name="restaurant_reviews",
+            collection_name=self.collection_name,
             persist_directory=CHROMA_PERSIST_DIR,
             embedding_function=embeddings
         )
 
         documents = []
         ids = []
-        for idx in range(0, len(texts_and_metadata)):
-            text = texts_and_metadata[idx][0]
+        for idx, (text, metadata) in enumerate(texts_and_metadata):
             print("Text:", text)
-            metadata = texts_and_metadata[idx][1]
             uid = metadata.get("uid")
             _id = f"{self.collection_name}_{uid}_{idx}"
-            document = Document(
+            doc = Document(
                 page_content=text,
                 metadata=metadata,
                 id=_id
             )
-            documents.append(document)
+            documents.append(doc)
             ids.append(_id)
         
         if documents:

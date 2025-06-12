@@ -43,21 +43,30 @@ class DocumentParser:
             return f"{settings.BACKEND_URL}{file_field.url}"
         return file_field.url
 
-    def parse_document(self) -> list:
+    def parse_document(self):
         """Parse the document using the appropriate parser."""
+        if not self.file_extension:
+            raise ValueError("File extension not set")
         parser_class = self.get_parser(self.file_extension)
         loader = parser_class(self.file_path)
         
         for item in loader.lazy_load():
             yield item.page_content, item.metadata
    
-    def download_and_parse_document(self, document: document_models.Document) -> list:
+    def download_and_parse_document(self, document: document_models.Document):
         """Download the document file and parse it."""
         self.file_extension = document.document_file.name.split('.')[-1]
         self.file_path = os.path.join(TEMP_FILE_DIR, f"{document.uid}.{self.file_extension}")
-        with open(self.file_path, 'wb') as file:
-            file.write(requests.get(self.get_file_url(document.document_file)).content)
-            print(f"Downloaded document to {self.file_path}")
+        
+        try:
+            response = requests.get(self.get_file_url(document.document_file), timeout=30)
+            response.raise_for_status()
+            with open(self.file_path, 'wb') as file:
+                file.write(response.content)
+                print(f"Downloaded document to {self.file_path}")
+        except requests.RequestException as e:
+            raise RuntimeError(f"Failed to download document: {e}")
+            
         if not os.path.exists(self.file_path):
             raise FileNotFoundError(f"Temporary file {self.file_path} not found.")
         return self.parse_document()
