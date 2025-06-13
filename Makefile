@@ -1,5 +1,5 @@
 COMPOSE_NAME ?= backend
-PROJECT_NAME ?=alterknights
+PROJECT_NAME ?=backend
 
 IMAGE_NAME ?= backend
 IMAGE_TAG := $(shell git describe --exact-match --tags 2>/dev/null || git rev-parse --short HEAD)
